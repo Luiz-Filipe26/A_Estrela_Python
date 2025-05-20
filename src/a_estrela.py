@@ -226,8 +226,25 @@ CORES_CELULA = {
     'F': (255, 165, 0),     # Laranja
     'FECHADO': (255, 0, 0, 100),       # Vermelho transparente
     'ABERTO': (0, 255, 0, 100),        # Verde transparente
-    'MENOR_CAMINHO': (0, 0, 255, 100)  # Azul transparente
+    'MENOR_CAMINHO': (0, 0, 255, 100),  # Azul transparente
+    'FONTE': (0, 0, 0)      # Preto
 }
+
+# Exibe os valores da distancia percorrida (g), distância em linha reta (h) e distância total percorrida/heurística (f)
+def exibir_valores_celula(interface, casa, fonte):
+    cor_fonte = CORES_CELULA.get('FONTE')
+    pos_x = casa.posicao.x * TAMANHO_CELULA
+    pos_y = casa.posicao.y * TAMANHO_CELULA
+
+    # Tratar casas decimais no texto
+    texto_g = fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
+    texto_h = fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
+    texto_f = fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
+
+    # Desenhart textos à esquerda, um em baixo do outro
+    interface.blit(texto_g, (pos_x + 2, pos_y + 2))  
+    interface.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8)) 
+    interface.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))  
 
 # Redimensionar tamanho da imagem 
 def buscar_imagem_para_celula(url_imagem):
@@ -275,7 +292,7 @@ def criar_interface(interface, cenario):
             desenhar_celula(interface, x, y, celula)
 
 # Colorir os caminhos já percorridos
-def mostrar_execucao_astar(interface, cenario):
+def mostrar_execucao_astar(interface, cenario, fonte):
     caminho, historico = achar_caminho(cenario)
 
     for casa, tipo_op in historico:
@@ -290,6 +307,9 @@ def mostrar_execucao_astar(interface, cenario):
             desenhar_cor_transparente(interface, x, y, CORES_CELULA.get('ABERTO')) 
         elif tipo_op == OPERACAO.CASA_FECHADA:
             desenhar_cor_transparente(interface, x, y,  CORES_CELULA.get('FECHADO')) 
+
+        # Exibir valores de f, g e h
+        exibir_valores_celula(interface, casa, fonte)
 
         pygame.display.flip()
         pygame.time.delay(200)
@@ -318,12 +338,14 @@ def iniciar_interface(cenario):
     interface = pygame.display.set_mode((largura, altura))
     pygame.display.set_caption("Algoritmo A* em game 2D")
     interface.fill((255, 255, 255))  # Pintar tudo de branco
+    fonte = pygame.font.SysFont('Arial', 16)
 
     # Criar cenário inicial 
     criar_interface(interface, cenario)
     pygame.display.flip() 
 
-    mostrar_execucao_astar(interface, cenario)
+    # Animação de procura do menor caminho
+    mostrar_execucao_astar(interface, cenario, fonte)
 
     # Manter a tela aberta enquanto personagem estiver procurando a saída
     procurando_caminho = True
