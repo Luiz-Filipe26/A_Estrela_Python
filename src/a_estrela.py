@@ -17,8 +17,6 @@ class Celula:
     SEMI_BARREIRA = 'A' # Pode ser pulada
     FRUTA = 'F'
 
-    TAMANHO_CELULA = 80
-
     VALIDAS = {VAZIA, PERSONAGEM, SAIDA, BARREIRA, SEMI_BARREIRA, FRUTA}
 
 CORES_CELULA = {
@@ -28,6 +26,19 @@ CORES_CELULA = {
     'B': (0, 0, 0),        # Barreira - Preto
     'A': (128, 128, 128),  # Semi-barreira - Cinza
     'F': (255, 165, 0),    # Fruta - Laranja
+}
+
+TAMANHO_CELULA = 64
+
+def buscar_imagem_para_celula(imagem_url):
+    return pygame.transform.scale(
+        pygame.image.load(imagem_url),
+        (TAMANHO_CELULA, TAMANHO_CELULA)
+    ),
+
+IMAGENS = {
+    'C': buscar_imagem_para_celula('img/personagem.png'),
+    'S': buscar_imagem_para_celula('img/saida.png')
 }
 
 PosicaoComContexto = namedtuple('PosicaoComContexto', 'x y celula pai')
@@ -230,14 +241,21 @@ def criar_interface_cenario(cenario, tamanho_celula):
             if evento.type == pygame.QUIT:
                 rodando = False
 
-        tela.fill((0, 0, 0))  # Fundo preto
+        tela.fill((255, 255, 255))  # Fundo preto
 
         for y in range(cenario.altura):
             for x in range(cenario.largura):
                 celula = cenario.obter_celula(x, y)
-                cor = CORES_CELULA.get(celula, (255, 0, 0))  # Vermelho para célula desconhecida
+                #cor = CORES_CELULA.get(celula, (255, 0, 0))  # Vermelho para célula desconhecida
                 rect = pygame.Rect(x * tamanho_celula, y * tamanho_celula, tamanho_celula, tamanho_celula)
-                pygame.draw.rect(tela, cor, rect)
+                pygame.draw.rect(tela, CORES_CELULA['_'], rect)
+
+                # Se for personagem ou saída, usar imagem
+                posicao = (x * tamanho_celula, y * tamanho_celula)
+                if celula in IMAGENS:
+                    imagem = IMAGENS[celula]
+                    tela.blit(imagem[0], (x * tamanho_celula, y * tamanho_celula))
+
                 pygame.draw.rect(tela, (0, 0, 0), rect, 1)  # Grade preta
 
         pygame.display.flip()
@@ -273,7 +291,7 @@ def main():
         print('Erro! Sem personagem ou sem saída!')
     caminho, historico = achar_caminho(cenario)
     mostrar_caminho(caminho)
-    criar_interface_cenario(cenario, Celula.TAMANHO_CELULA)
+    criar_interface_cenario(cenario, TAMANHO_CELULA)
 
 
 if __name__ == '__main__':
