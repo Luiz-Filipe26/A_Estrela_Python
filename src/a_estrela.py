@@ -2,6 +2,7 @@ import heapq
 import math
 from collections import namedtuple
 import pygame
+import os
 
 # Estado de uma casa: aberto ou fechado
 class OPERACAO:
@@ -18,28 +19,6 @@ class Celula:
     FRUTA = 'F'
 
     VALIDAS = {VAZIA, PERSONAGEM, SAIDA, BARREIRA, SEMI_BARREIRA, FRUTA}
-
-CORES_CELULA = {
-    '_': (255, 255, 255),  # Vazia - Branco
-    'C': (0, 0, 255),      # Personagem - Azul
-    'S': (0, 255, 0),      # Saída - Verde
-    'B': (0, 0, 0),        # Barreira - Preto
-    'A': (128, 128, 128),  # Semi-barreira - Cinza
-    'F': (255, 165, 0),    # Fruta - Laranja
-}
-
-TAMANHO_CELULA = 64
-
-def buscar_imagem_para_celula(imagem_url):
-    return pygame.transform.scale(
-        pygame.image.load(imagem_url),
-        (TAMANHO_CELULA, TAMANHO_CELULA)
-    ),
-
-IMAGENS = {
-    'C': buscar_imagem_para_celula('img/personagem.png'),
-    'S': buscar_imagem_para_celula('img/saida.png')
-}
 
 PosicaoComContexto = namedtuple('PosicaoComContexto', 'x y celula pai')
 
@@ -226,39 +205,71 @@ def achar_caminho(cenario):
 
     return list(reversed(caminho_resultante)), estado_da_procura.historico
 
+TAMANHO_CELULA = 64
+
+CORES_CELULA = {
+    '_': (255, 255, 255),  # Branco
+    'C': (0, 0, 255),      #  Azul
+    'S': (0, 255, 0),      # Verde
+    'B': (0, 0, 0),        # Preto
+    'A': (128, 128, 128),  # Cinza
+    'F': (255, 165, 0),    # Laranja
+}
+
+# Redimensionar tamanho da imagem 
+def buscar_imagem_para_celula(url_imagem):
+    if not os.path.exists(url_imagem):
+        return None
+    imagem = pygame.image.load(url_imagem)
+    tamanho_imagem = (TAMANHO_CELULA, TAMANHO_CELULA)
+    return pygame.transform.scale(imagem, tamanho_imagem),
+
+# Imagens já redimensionadas para usar na interface
+IMAGENS = {
+    'C': buscar_imagem_para_celula('img/personagem.png'),
+    'S': buscar_imagem_para_celula('img/saida.png'),
+    'B': buscar_imagem_para_celula('img/barreira.png'),
+    'A': buscar_imagem_para_celula('img/semi_barreira.png'),
+    'F': buscar_imagem_para_celula('img/fruta.png')
+}
 
 # Desenhar interface
 def criar_interface_cenario(cenario, tamanho_celula):
+
+    # Configurações iniciais da interface
     pygame.init()
     largura = cenario.largura * tamanho_celula
     altura = cenario.altura * tamanho_celula
-    tela = pygame.display.set_mode((largura, altura))
-    pygame.display.set_caption("Cenário")
+    interface_cenario = pygame.display.set_mode((largura, altura))
+    pygame.display.set_caption("Algoritmo A* em game 2D")
+    interface_cenario.fill((255, 255, 255))  # Pintar tudo de branco
 
-    rodando = True
-    while rodando:
+    # Criar cenário inicial 
+    for y in range(cenario.altura):
+        for x in range(cenario.largura):
+            celula = cenario.obter_celula(x, y) # Valor da célula na matriz
+            rect = pygame.Rect(x * tamanho_celula, y * tamanho_celula, tamanho_celula, tamanho_celula)
+            posicao = (x * tamanho_celula, y * tamanho_celula)
+
+            # Usar cor para representar os elementos se não achar a imagem correspondente
+            if celula in IMAGENS and IMAGENS[celula]:
+                imagem = IMAGENS[celula]
+                interface_cenario.blit(imagem[0], posicao)
+            else:
+                cor_elemento = CORES_CELULA[celula]
+                pygame.draw.rect(interface_cenario, cor_elemento, rect)
+            
+
+            pygame.draw.rect(interface_cenario, (0, 0, 0), rect, 1)  # Desenhar grade para dividir as células
+
+    pygame.display.flip()
+
+    # Manter a tela aberta enquanto personagem estiver procurando a saída
+    procurando_caminho = True
+    while procurando_caminho:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                rodando = False
-
-        tela.fill((255, 255, 255))  # Fundo preto
-
-        for y in range(cenario.altura):
-            for x in range(cenario.largura):
-                celula = cenario.obter_celula(x, y)
-                #cor = CORES_CELULA.get(celula, (255, 0, 0))  # Vermelho para célula desconhecida
-                rect = pygame.Rect(x * tamanho_celula, y * tamanho_celula, tamanho_celula, tamanho_celula)
-                pygame.draw.rect(tela, CORES_CELULA['_'], rect)
-
-                # Se for personagem ou saída, usar imagem
-                posicao = (x * tamanho_celula, y * tamanho_celula)
-                if celula in IMAGENS:
-                    imagem = IMAGENS[celula]
-                    tela.blit(imagem[0], (x * tamanho_celula, y * tamanho_celula))
-
-                pygame.draw.rect(tela, (0, 0, 0), rect, 1)  # Grade preta
-
-        pygame.display.flip()
+                procurando_caminho = False
 
     pygame.quit()
 
