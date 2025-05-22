@@ -1,26 +1,28 @@
 import heapq
 import math
 from collections import namedtuple
-import pygame
-import os
+
 
 # Estado de uma casa: aberto ou fechado
 class OPERACAO:
     CASA_ABERTA = 'A'
     CASA_FECHADA = 'F'
 
+
 # Tipos de casas no cenário
 class Celula:
     VAZIA = '_'
     PERSONAGEM = 'C'
     SAIDA = 'S'
-    BARREIRA = 'B' # Pode pular se tiver fruta
-    SEMI_BARREIRA = 'A' # Pode ser pulada
+    BARREIRA = 'B'  # Pode pular se tiver fruta
+    SEMI_BARREIRA = 'A'  # Pode ser pulada
     FRUTA = 'F'
 
     VALIDAS = {VAZIA, PERSONAGEM, SAIDA, BARREIRA, SEMI_BARREIRA, FRUTA}
 
+
 PosicaoComContexto = namedtuple('PosicaoComContexto', 'x y celula pai')
+
 
 # Uma posição no cenário
 class Casa:
@@ -28,13 +30,14 @@ class Casa:
 
     def __init__(self, posicao, f, g, h, tem_fruta):
         self.posicao = posicao
-        self.f = f # Caminho total até a saída 
-        self.g = g # Caminho percorrido até o momento
-        self.h = h # Caminho em linha reta estimado até a saída
+        self.f = f  # Caminho total até a saída
+        self.g = g  # Caminho percorrido até o momento
+        self.h = h  # Caminho em linha reta estimado até a saída
         self.tem_fruta = tem_fruta
 
     def __lt__(self, other):
         return self.f < other.f
+
 
 # Tabuleiro completo em que o personagem vai se movimentar para achar a saída
 class Cenario:
@@ -72,18 +75,19 @@ class Cenario:
                 elif self.obter_celula(x, y) == Celula.SAIDA:
                     self.saida_posicao = {'x': x, 'y': y}
 
+
 # Lógica principal do algoritmo A*
 class EstadoDaProcura:
     __slots__ = ['casas_abertas', 'casas_fechadas', 'menores_f', 'personagem', 'saida', "historico"]
 
     def __init__(self, casa_inicial, saida):
-        self.casas_abertas = [] # Caminhos que precisam ser explorados
+        self.casas_abertas = []  # Caminhos que precisam ser explorados
         heapq.heappush(self.casas_abertas, (casa_inicial.f, casa_inicial))
-        self.casas_fechadas = set() # Caminhos já percorridos pelo personagem
+        self.casas_fechadas = set()  # Caminhos já percorridos pelo personagem
         self.menores_f = {(casa_inicial.posicao.x, casa_inicial.posicao.y): casa_inicial.f}
         self.personagem = casa_inicial
         self.saida = saida
-        self.historico = [] # Armazenar menor caminho encontrado 
+        self.historico = []  # Armazenar menor caminho encontrado
 
     # Encontrar casa com menor caminho da lista de caminhos para explorar usando fila de prioridade
     def buscar_proximo(self):
@@ -128,9 +132,9 @@ def calcular_fe(g, h):
 def calcular_g(casa_pai, posicao_vizinha):
     andou_reto = casa_pai.posicao.x == posicao_vizinha.x or casa_pai.posicao.y == posicao_vizinha.y
     tem_barreira = posicao_vizinha.celula in (Celula.BARREIRA, Celula.SEMI_BARREIRA)
-    dist = 1 if andou_reto else 1.4 # Andou na diagonal
+    dist = 1 if andou_reto else 1.4  # Andou na diagonal
     if tem_barreira:
-        dist += 1 # Andou reto
+        dist += 1  # Andou reto
     return casa_pai.g + dist
 
 
@@ -139,6 +143,7 @@ def calcular_h(casa_atual, casa_saida):
     base = casa_saida.x - casa_atual.x
     altura = casa_saida.y - casa_atual.y
     return round(math.hypot(base, altura), 1)
+
 
 # Verificar se a casa vizinha é valida
 def validar_casa(posicao_vizinha, estado_da_procura):
@@ -150,6 +155,7 @@ def validar_casa(posicao_vizinha, estado_da_procura):
         return False
 
     return True
+
 
 # Criar personagem e saída
 def inicializar_estado_da_procura(cenario):
@@ -164,9 +170,9 @@ def inicializar_estado_da_procura(cenario):
 
     return EstadoDaProcura(personagem, saida)
 
+
 # Iniciar algoritmo A*
 def achar_caminho(cenario):
-
     # Personagem e saída sendo criados para inicar a procuta
     estado_da_procura = inicializar_estado_da_procura(cenario)
     if estado_da_procura is None:
@@ -174,7 +180,7 @@ def achar_caminho(cenario):
 
     # Percorrer casas encontradas durantre o caminho
     while estado_da_procura.casas_abertas:
-        personagem = estado_da_procura.buscar_proximo() # Personagem andou uma casa (a que tem menor fe)
+        personagem = estado_da_procura.buscar_proximo()  # Personagem andou uma casa (a que tem menor fe)
         if estado_da_procura.achou_saida():
             break
 
@@ -193,9 +199,9 @@ def achar_caminho(cenario):
             casa_vizinha = Casa(posicao_vizinha, f, g, h, tem_fruta)
 
             # Nova casa adicionada para ser explorada
-            estado_da_procura.registrar_casa_aberta(casa_vizinha) 
+            estado_da_procura.registrar_casa_aberta(casa_vizinha)
 
-    # Reconstruir menor caminho encontrado do início até a saída
+            # Reconstruir menor caminho encontrado do início até a saída
     caminho_resultante = []
     atual = estado_da_procura.pegar_saida()
 
@@ -204,6 +210,7 @@ def achar_caminho(cenario):
         atual = atual.posicao.pai
 
     return list(reversed(caminho_resultante)), estado_da_procura.historico
+
 
 # Exibir menor caminho encontrado
 def mostrar_menor_caminho_console(caminho):
@@ -214,147 +221,6 @@ def mostrar_menor_caminho_console(caminho):
     caminho_formatado = [f'[x:{casa["x"]}, y:{casa["y"]}]' for casa in caminho]
     print('===============\nMelhor caminho: ')
     print(' -> '.join(caminho_formatado))
-
-TAMANHO_CELULA = 64
-
-CORES_CELULA = {
-    '_': (255, 255, 255),   # Branco
-    'C': (0, 0, 255),       # Azul
-    'S': (0, 255, 0),       # Verde
-    'B': (0, 0, 0),         # Preto
-    'A': (128, 128, 128),   # Cinza
-    'F': (255, 165, 0),     # Laranja
-    'FECHADO': (255, 0, 0, 100),       # Vermelho transparente
-    'ABERTO': (0, 255, 0, 100),        # Verde transparente
-    'MENOR_CAMINHO': (0, 0, 255, 100),  # Azul transparente
-    'FONTE': (0, 0, 0)      # Preto
-}
-
-# Exibe os valores da distancia percorrida (g), distância em linha reta (h) e distância total percorrida/heurística (f)
-def exibir_valores_celula(interface, casa, fonte):
-    cor_fonte = CORES_CELULA.get('FONTE')
-    pos_x = casa.posicao.x * TAMANHO_CELULA
-    pos_y = casa.posicao.y * TAMANHO_CELULA
-
-    # Tratar casas decimais no texto
-    texto_g = fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
-    texto_h = fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
-    texto_f = fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
-
-    # Desenhart textos à esquerda, um em baixo do outro
-    interface.blit(texto_g, (pos_x + 2, pos_y + 2))  
-    interface.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8)) 
-    interface.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))  
-
-# Redimensionar tamanho da imagem 
-def buscar_imagem_para_celula(url_imagem):
-    if not os.path.exists(url_imagem):
-        return None
-    imagem = pygame.image.load(url_imagem)
-    tamanho_imagem = (TAMANHO_CELULA, TAMANHO_CELULA)
-    return pygame.transform.scale(imagem, tamanho_imagem),
-
-# Imagens já redimensionadas para usar na interface
-IMAGENS = {
-    'C': buscar_imagem_para_celula('img/personagem.png'),
-    'S': buscar_imagem_para_celula('img/saida.png'),
-    'B': buscar_imagem_para_celula('img/barreira.png'),
-    'A': buscar_imagem_para_celula('img/semi_barreira.png'),
-    'F': buscar_imagem_para_celula('img/fruta.png')
-}
-
-# Desenhar uma célula (quadradinho) na interface
-def desenhar_celula(interface, x, y, celula):
-    area_celula = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
-    posicao = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
-
-    # Usar cor para representar os elementos se não achar a imagem correspondente
-    if celula in IMAGENS and IMAGENS[celula]:
-        imagem = IMAGENS[celula]
-        interface.blit(imagem[0], posicao)
-    else:
-        cor_elemento = CORES_CELULA[celula]
-        pygame.draw.rect(interface, cor_elemento, area_celula)
-
-    pygame.draw.rect(interface, (0, 0, 0), area_celula, 1)  # Grade para dividir as células
-
-# Desennhar cor transparente para não sobrepor as imagens
-def desenhar_cor_transparente(interface, x, y, cor_rgba):
-    sobreporsicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
-    sobreporsicao.fill(cor_rgba)  
-    interface.blit(sobreporsicao, (x * TAMANHO_CELULA, y * TAMANHO_CELULA))
-
-# Desenhar interface completa do cenário
-def criar_interface(interface, cenario):
-    for y in range(cenario.altura):
-        for x in range(cenario.largura):
-            celula = cenario.obter_celula(x, y) # Valor da célula na matriz do cenário
-            desenhar_celula(interface, x, y, celula)
-
-# Colorir os caminhos já percorridos
-def mostrar_execucao_astar(interface, cenario, fonte):
-    caminho, historico = achar_caminho(cenario)
-
-    for casa, tipo_op in historico:
-        x, y = casa.posicao.x, casa.posicao.y
-
-        # Redesenhar a célula de fundo
-        tipo_celula = cenario.obter_celula(x, y)
-        desenhar_celula(interface, x, y, tipo_celula)
-
-        # Colorir caminho do personagem com cor transparente
-        if tipo_op == OPERACAO.CASA_ABERTA:
-            desenhar_cor_transparente(interface, x, y, CORES_CELULA.get('ABERTO')) 
-        elif tipo_op == OPERACAO.CASA_FECHADA:
-            desenhar_cor_transparente(interface, x, y,  CORES_CELULA.get('FECHADO')) 
-
-        # Exibir valores de f, g e h
-        exibir_valores_celula(interface, casa, fonte)
-
-        pygame.display.flip()
-        pygame.time.delay(200)
-
-    mostrar_menor_caminho_interface(caminho, interface, cenario)
- 
-# Desenhar o menor caminho encontrado pelo personagem
-def mostrar_menor_caminho_interface(caminho, interface, cenario):
-    for casa in caminho:
-        x, y = casa['x'], casa['y']
-
-        tipo_celula = cenario.obter_celula(x, y)
-        desenhar_celula(interface, x, y, tipo_celula)
-        desenhar_cor_transparente(interface, x, y, CORES_CELULA.get('MENOR_CAMINHO'))
-
-        pygame.display.flip()
-        pygame.time.delay(100)
-
-# Iniciar interface monstreando o A* funcionando
-def iniciar_interface(cenario):
-
-    # Configurações iniciais da interface
-    pygame.init()
-    largura = cenario.largura * TAMANHO_CELULA
-    altura = cenario.altura * TAMANHO_CELULA
-    interface = pygame.display.set_mode((largura, altura))
-    pygame.display.set_caption("Algoritmo A* em game 2D")
-    interface.fill((255, 255, 255))  # Pintar tudo de branco
-    fonte = pygame.font.SysFont('Arial', 16)
-
-    # Criar cenário inicial 
-    criar_interface(interface, cenario)
-    pygame.display.flip() 
-
-    # Animação de procura do menor caminho
-    mostrar_execucao_astar(interface, cenario, fonte)
-
-    # Manter a tela aberta enquanto personagem estiver procurando a saída
-    procurando_caminho = True
-    while procurando_caminho:
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                procurando_caminho = False
-
-    pygame.quit()
 
 
 # Cenário 6x6 de exemplo
@@ -375,7 +241,8 @@ def main():
         print('Erro! Sem personagem ou sem saída!')
     caminho, historico = achar_caminho(cenario)
     mostrar_menor_caminho_console(caminho)
-    iniciar_interface(cenario)
+    from src.a_estrela_gui import mostrar_menor_caminho_gui
+    mostrar_menor_caminho_gui(caminho, historico, cenario)
 
 
 if __name__ == '__main__':
