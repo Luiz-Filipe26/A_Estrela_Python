@@ -215,6 +215,11 @@ def mostrar_menor_caminho_console(caminho):
     print('===============\nMelhor caminho: ')
     print(' -> '.join(caminho_formatado))
 
+
+# ===============================
+# A* GUI
+# ===============================
+
 TAMANHO_CELULA = 64
 
 CORES_CELULA = {
@@ -226,135 +231,189 @@ CORES_CELULA = {
     'F': (255, 165, 0),     # Laranja
     'FECHADO': (255, 0, 0, 100),       # Vermelho transparente
     'ABERTO': (0, 255, 0, 100),        # Verde transparente
-    'MENOR_CAMINHO': (0, 0, 255, 100),  # Azul transparente
-    'FONTE': (0, 0, 0)      # Preto
+    'MENOR_CAMINHO': (0, 0, 255, 100), # Azul transparente
+    'FONTE': (0, 0, 0),     
+    'GRADE': (0, 0, 0)      
 }
 
-# Exibe os valores da distancia percorrida (g), distância em linha reta (h) e distância total percorrida/heurística (f)
-def exibir_valores_celula(interface, casa, fonte):
-    cor_fonte = CORES_CELULA.get('FONTE')
-    pos_x = casa.posicao.x * TAMANHO_CELULA
-    pos_y = casa.posicao.y * TAMANHO_CELULA
+class Interface:
 
-    # Tratar casas decimais no texto
-    texto_g = fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
-    texto_h = fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
-    texto_f = fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
+    def __init__(self, cenario):
 
-    # Desenhart textos à esquerda, um em baixo do outro
-    interface.blit(texto_g, (pos_x + 2, pos_y + 2))  
-    interface.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8)) 
-    interface.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))  
+        # Configurações iniciais da interface
+        pygame.init()
+        self.cenario = cenario
+        self.largura = cenario.largura * TAMANHO_CELULA
+        self.altura = cenario.altura * TAMANHO_CELULA
+        self.interface = pygame.display.set_mode((self.largura, self.altura))
+        pygame.display.set_caption("Algoritmo A* em game 2D")
+        self.interface.fill(CORES_CELULA['_'])
+        self.fonte = pygame.font.SysFont('Arial', 16)
 
-# Redimensionar tamanho da imagem 
-def buscar_imagem_para_celula(url_imagem):
-    if not os.path.exists(url_imagem):
-        return None
-    imagem = pygame.image.load(url_imagem)
-    tamanho_imagem = (TAMANHO_CELULA, TAMANHO_CELULA)
-    return pygame.transform.scale(imagem, tamanho_imagem),
+        self.imagens = self.carregar_imagens()
 
-# Imagens já redimensionadas para usar na interface
-IMAGENS = {
-    'C': buscar_imagem_para_celula('img/personagem.png'),
-    'S': buscar_imagem_para_celula('img/saida.png'),
-    'B': buscar_imagem_para_celula('img/barreira.png'),
-    'A': buscar_imagem_para_celula('img/semi_barreira.png'),
-    'F': buscar_imagem_para_celula('img/fruta.png')
-}
+    # Exibe os valores da distancia percorrida (g), distância em linha reta (h) e distância total percorrida/heurística (f)
+    def exibir_valores_celula(self, casa):
+        cor_fonte = CORES_CELULA['FONTE']
+        pos_x = casa.posicao.x * TAMANHO_CELULA
+        pos_y = casa.posicao.y * TAMANHO_CELULA
 
-# Desenhar uma célula (quadradinho) na interface
-def desenhar_celula(interface, x, y, celula):
-    area_celula = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
-    posicao = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
+        # Tratar casas decimais do texto
+        texto_g = self.fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
+        texto_h = self.fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
+        texto_f = self.fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
 
-    # Usar cor para representar os elementos se não achar a imagem correspondente
-    if celula in IMAGENS and IMAGENS[celula]:
-        imagem = IMAGENS[celula]
-        interface.blit(imagem[0], posicao)
-    else:
-        cor_elemento = CORES_CELULA[celula]
-        pygame.draw.rect(interface, cor_elemento, area_celula)
+        self.interface.blit(texto_g, (pos_x + 2, pos_y + 2))  
+        self.interface.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8)) 
+        self.interface.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))  
 
-    pygame.draw.rect(interface, (0, 0, 0), area_celula, 1)  # Grade para dividir as células
+    # CArregas todas as imagens necessárias para o jogo
+    def carregar_imagens(self):
+        return {
+            'C': self.buscar_imagem_para_celula('img/frames/pixil-frame-0.png'),
+            'S': self.buscar_imagem_para_celula('img/saida.png'),
+            'B': self.buscar_imagem_para_celula('img/barreira.png'),
+            'A': self.buscar_imagem_para_celula('img/semi_barreira.png'),
+            'F': self.buscar_imagem_para_celula('img/fruta.png'),
+            'FRAMES': self.carregar_frames_personagem('img/frames/'),
+            'FRAMES_COM_FRUTA': self.carregar_frames_personagem('img/frames_com_fruta/')
+        }
+    
+    # Redimensionar tamanho da imagem 
+    def buscar_imagem_para_celula(self, caminho):
+        if not os.path.exists(caminho):
+            return None
+        imagem = pygame.image.load(caminho)
+        imagem = pygame.transform.scale(imagem, (TAMANHO_CELULA, TAMANHO_CELULA))
+        return imagem
 
-# Desennhar cor transparente para não sobrepor as imagens
-def desenhar_cor_transparente(interface, x, y, cor_rgba):
-    sobreporsicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
-    sobreporsicao.fill(cor_rgba)  
-    interface.blit(sobreporsicao, (x * TAMANHO_CELULA, y * TAMANHO_CELULA))
+    # Retornar frames do personagem, caso não encontrar usar a imagem padrão
+    def carregar_frames_personagem(self, pasta):
+        frames = []
+        numero = 1
+        while True:
+            caminho = os.path.join(pasta, f'pixil-frame-{numero}.png')
+            if not os.path.exists(caminho):
+                break
+            imagem = pygame.image.load(caminho)
+            imagem = pygame.transform.scale(imagem, (TAMANHO_CELULA, TAMANHO_CELULA))
+            frames.append(imagem)
+            numero += 1
+        return frames if frames else [self.imagens['C']]
+    
+    # Desenhar uma célula (quadradinho) na interface usando imagens, se não encontrar usa cores
+    def desenhar_celula(self, x, y, celula, frame=None):
+        area = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
+        posicao = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
 
-# Desenhar interface completa do cenário
-def criar_interface(interface, cenario):
-    for y in range(cenario.altura):
-        for x in range(cenario.largura):
-            celula = cenario.obter_celula(x, y) # Valor da célula na matriz do cenário
-            desenhar_celula(interface, x, y, celula)
+        if celula == 'FRAMES' and frame:
+            self.interface.blit(frame, posicao)
+        elif celula in self.imagens and self.imagens[celula]:
+            self.interface.blit(self.imagens[celula], posicao)
+        else:
+            pygame.draw.rect(self.interface, CORES_CELULA.get(celula, (255, 0, 255)), area)
 
-# Colorir os caminhos já percorridos
-def mostrar_execucao_astar(interface, cenario, fonte):
-    caminho, historico = achar_caminho(cenario)
+        pygame.draw.rect(self.interface, CORES_CELULA['GRADE'], area, 1)  # Grade para dividir as células
 
-    for casa, tipo_op in historico:
-        x, y = casa.posicao.x, casa.posicao.y
+    # Desennhar cor transparente para não sobrepor as imagens
+    def desenhar_cor_transparente(self, x, y, cor_transparente):
+        sobreposicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+        posicao = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
+        sobreposicao.fill(cor_transparente)
+        self.interface.blit(sobreposicao, posicao)
 
-        # Redesenhar a célula de fundo
-        tipo_celula = cenario.obter_celula(x, y)
-        desenhar_celula(interface, x, y, tipo_celula)
+    # Transformar cenário em formato de matriz em uma interface gráfica
+    def criar_interface_cenario(self):
+        for y in range(self.cenario.altura):
+            for x in range(self.cenario.largura):
+                celula = self.cenario.obter_celula(x, y) # Valor da célula na matriz do cenário
+                self.desenhar_celula(x, y, celula)
 
-        # Colorir caminho do personagem com cor transparente
-        if tipo_op == OPERACAO.CASA_ABERTA:
-            desenhar_cor_transparente(interface, x, y, CORES_CELULA.get('ABERTO')) 
-        elif tipo_op == OPERACAO.CASA_FECHADA:
-            desenhar_cor_transparente(interface, x, y,  CORES_CELULA.get('FECHADO')) 
+    # Colorir os caminhos já percorridos pelo personagem
+    def executar_aestrela(self, historico, OPERACAO):
+        for casa, tipo_op in historico:
+            x, y = casa.posicao.x, casa.posicao.y
 
-        # Exibir valores de f, g e h
-        exibir_valores_celula(interface, casa, fonte)
+            # Redesenhar célula de fundo para ajudar na sobreposição 
+            tipo_celula = self.cenario.obter_celula(x, y)
+            self.desenhar_celula(x, y, tipo_celula)
 
+            if tipo_op == OPERACAO.CASA_ABERTA:
+                self.desenhar_cor_transparente(x, y, CORES_CELULA['ABERTO'])
+            elif tipo_op == OPERACAO.CASA_FECHADA:
+                self.desenhar_cor_transparente(x, y, CORES_CELULA['FECHADO'])
+
+            self.exibir_valores_celula(casa)
+            pygame.display.flip()
+            pygame.time.delay(200)
+
+    # Desenhar o menor caminho encontrado pelo personagem
+    def mostrar_menor_caminho_interface(self, caminho):
+        for casa in caminho:
+            x, y = casa['x'], casa['y']
+            self.desenhar_cor_transparente(x, y, CORES_CELULA['MENOR_CAMINHO'])
+            pygame.display.flip()
+            pygame.time.delay(100)
+
+    # Mostrar personagem andando pelo menor caminho encontrado -> apagar posição anterior e desenhar na posição atual
+    def mover_personagem(self, caminho):
+        personagem_posicao_anterior = caminho[0]
+        pegou_fruta = False
+
+        for posicao in caminho:
+            x, y = posicao['x'], posicao['y']
+            x_anterior, y_anterior = personagem_posicao_anterior['x'], personagem_posicao_anterior['y']
+
+            celula_anterior = self.cenario.obter_celula(x_anterior, y_anterior)
+            if celula_anterior == 'C': # Limpar imagem do personagem na posição onde ele está no cenário 
+                self.desenhar_celula(x_anterior, y_anterior, '_')
+            elif celula_anterior == 'F': # Personagem pegou fruta, tirar ela da interface
+                self.desenhar_celula(x_anterior, y_anterior, '_') 
+                pegou_fruta = True
+            elif celula_anterior == 'B' and pegou_fruta:
+                pegou_fruta = False
+                self.desenhar_celula(x_anterior, y_anterior, 'B')
+            else:
+                self.desenhar_celula(x_anterior, y_anterior, celula_anterior)
+
+            frames = self.imagens['FRAMES_COM_FRUTA'] if pegou_fruta else self.imagens['FRAMES']
+
+            for frame in frames:
+                celula_atual = self.cenario.obter_celula(x, y)
+                self.desenhar_celula(x, y, celula_atual) # Limpar frame anterior do gif
+                self.desenhar_celula(x, y, 'FRAMES', frame)
+
+                pygame.display.flip()
+                pygame.time.delay(200)
+
+            personagem_posicao_anterior = posicao
+
+    # Iniciar interface mostrando visualmente o funcionamento do A*
+    def iniciar(self, historico, caminho, OPERACAO):
+        self.interface.fill(CORES_CELULA['_'])
+        self.criar_interface_cenario()
         pygame.display.flip()
-        pygame.time.delay(200)
 
-    mostrar_menor_caminho_interface(caminho, interface, cenario)
- 
-# Desenhar o menor caminho encontrado pelo personagem
-def mostrar_menor_caminho_interface(caminho, interface, cenario):
-    for casa in caminho:
-        x, y = casa['x'], casa['y']
+        manter_tela_aberta = True
+        while manter_tela_aberta:
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    manter_tela_aberta = False
 
-        tipo_celula = cenario.obter_celula(x, y)
-        desenhar_celula(interface, x, y, tipo_celula)
-        desenhar_cor_transparente(interface, x, y, CORES_CELULA.get('MENOR_CAMINHO'))
+                
+                # Animação de procura do menor caminho
+                if evento.type == pygame.KEYDOWN and evento.key == pygame.K_SPACE:
+                    self.interface.fill(CORES_CELULA['_'])  
+                    self.criar_interface_cenario()
 
-        pygame.display.flip()
-        pygame.time.delay(100)
+                    self.executar_aestrela(historico, OPERACAO) 
+                    self.mostrar_menor_caminho_interface(caminho)
+                    
+                    self.interface.fill(CORES_CELULA['_'])  
+                    self.criar_interface_cenario()
+                    self.mover_personagem(caminho)
 
-# Iniciar interface monstreando o A* funcionando
-def iniciar_interface(cenario):
-
-    # Configurações iniciais da interface
-    pygame.init()
-    largura = cenario.largura * TAMANHO_CELULA
-    altura = cenario.altura * TAMANHO_CELULA
-    interface = pygame.display.set_mode((largura, altura))
-    pygame.display.set_caption("Algoritmo A* em game 2D")
-    interface.fill((255, 255, 255))  # Pintar tudo de branco
-    fonte = pygame.font.SysFont('Arial', 16)
-
-    # Criar cenário inicial 
-    criar_interface(interface, cenario)
-    pygame.display.flip() 
-
-    # Animação de procura do menor caminho
-    mostrar_execucao_astar(interface, cenario, fonte)
-
-    # Manter a tela aberta enquanto personagem estiver procurando a saída
-    procurando_caminho = True
-    while procurando_caminho:
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                procurando_caminho = False
-
-    pygame.quit()
+        pygame.quit()
 
 
 # Cenário 6x6 de exemplo
@@ -368,6 +427,14 @@ def obter_cenario():
         ['_', '_', '_', '_', '_', 'S'],
     ])
 
+        # Teste para passar pela barreira
+        #['C', '_', 'F', 'B', '_', '_'],
+        #['B', 'B', 'B', 'B', 'B', '_'],
+        #['B', 'B', 'B', 'B', 'B', '_'],
+        #['B', 'B', 'B', 'B', 'B', 'A'],
+        #['B', 'B', 'B', 'A', 'B', '_'],
+        #['B', 'B', 'B', 'B', 'B', 'S'],
+
 
 def main():
     cenario = obter_cenario()
@@ -375,7 +442,9 @@ def main():
         print('Erro! Sem personagem ou sem saída!')
     caminho, historico = achar_caminho(cenario)
     mostrar_menor_caminho_console(caminho)
-    iniciar_interface(cenario)
+
+    interface = Interface(cenario)
+    interface.iniciar(historico, caminho, OPERACAO)
 
 
 if __name__ == '__main__':
