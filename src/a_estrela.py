@@ -206,7 +206,7 @@ def achar_caminho(cenario):
     atual = estado_da_procura.pegar_saida()
 
     while atual is not None:
-        caminho_resultante.append({'x': atual.posicao.x, 'y': atual.posicao.y})
+        caminho_resultante.append(atual)
         atual = atual.posicao.pai
 
     return list(reversed(caminho_resultante)), estado_da_procura.historico
@@ -218,7 +218,7 @@ def mostrar_menor_caminho_console(caminho):
         print('Não foi achado um caminho!')
         return
 
-    caminho_formatado = [f'[x:{casa["x"]}, y:{casa["y"]}]' for casa in caminho]
+    caminho_formatado = [f'[x:{casa.posicao.x}, y:{casa.posicao.y}]' for casa in caminho]
     print('===============\nMelhor caminho: ')
     print(' -> '.join(caminho_formatado))
 
