@@ -58,6 +58,10 @@ class Cenario:
         fora_do_cenario = not (0 <= x < self.largura and 0 <= y < self.altura)
         return None if fora_do_cenario else self.matriz_cenario[y][x]
 
+    def obter_posicao_com_contexto(self, x, y):
+        tipo = self.obter_celula(x, y)
+        return PosicaoComContexto(x, y, tipo, None)
+
     # Encontrar os caminhos vizinhos dipoíveis para o personagem andar
     def obter_coordenadas_vizinhas(self, x, y):
         return [
@@ -74,6 +78,11 @@ class Cenario:
                     self.personagem_posicao = {'x': x, 'y': y}
                 elif self.obter_celula(x, y) == Celula.SAIDA:
                     self.saida_posicao = {'x': x, 'y': y}
+
+    def __iter__(self):
+        for y in range(self.altura):
+            for x in range(self.largura):
+                yield self.obter_posicao_com_contexto(x, y)
 
 
 # Lógica principal do algoritmo A*
