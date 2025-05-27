@@ -141,9 +141,9 @@ def calcular_fe(g, h):
 def calcular_g(casa_pai, posicao_vizinha):
     andou_reto = casa_pai.posicao.x == posicao_vizinha.x or casa_pai.posicao.y == posicao_vizinha.y
     tem_barreira = posicao_vizinha.celula in (Celula.BARREIRA, Celula.SEMI_BARREIRA)
-    dist = 1 if andou_reto else 1.4  # Andou na diagonal
+    dist = 1 if andou_reto else 1.4  # Andou reto ou diagonal
     if tem_barreira:
-        dist += 1  # Andou reto
+        dist += 1  # Criar lentidão de 1 via heurística
     return casa_pai.g + dist
 
 

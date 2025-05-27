@@ -1,3 +1,5 @@
+from enum import Enum, auto
+
 import pygame
 import os
 
@@ -11,7 +13,19 @@ FPS = 10
 FONTE_NOME = 'Arial'
 FONTE_TAMANHO = 16
 TITULO = "Algoritmo A* em game 2D"
-fonte: Optional[Font] = None
+
+class Etapas(Enum):
+    PROCURANDO_CAMINHO = auto()
+    MOSTRANDO_CAMINHO = auto()
+    ESPERANDO = auto()
+
+class Estado:
+    fonte: Optional[Font] = None
+    etapa_atual = Etapas.ESPERANDO
+    tela = None
+    cenario = None
+    historico = None
+    caminho = None
 
 
 class Cores:
@@ -82,21 +96,37 @@ def exibir_valores_celula(tela, casa):
     pos_x = x * TAMANHO_CELULA
     pos_y = y * TAMANHO_CELULA
 
-    global fonte
-    texto_g = fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
-    texto_h = fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
-    texto_f = fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
+    texto_g = Estado.fonte.render(f"g: {casa.g:.1f}", True, cor_fonte)
+    texto_h = Estado.fonte.render(f"h: {casa.h:.1f}", True, cor_fonte)
+    texto_f = Estado.fonte.render(f"f: {casa.f:.1f}", True, cor_fonte)
 
     tela.blit(texto_g, (pos_x + 2, pos_y + 2))
     tela.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8))
     tela.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))
 
+def executar_proxima_etapa():
+    if Estado.etapa_atual == Etapas.ESPERANDO:
+        Estado.etapa_atual = Etapas.PROCURANDO_CAMINHO
+        animar_busca(Estado.tela, Estado.cenario, Estado.historico)
+    elif Estado.etapa_atual == Etapas.PROCURANDO_CAMINHO:
+        Estado.etapa_atual = Etapas.MOSTRANDO_CAMINHO
+        desenhar_caminho_final(Estado.tela, Estado.cenario, Estado.caminho)
+    else:
+        Estado.etapa_atual = Etapas.ESPERANDO
 
-def ouvir_eventos():
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+
+def ouvir_eventos(processando_etapa=True):
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if evento.type == pygame.KEYDOWN:
+                if not processando_etapa and evento.key == pygame.K_SPACE:
+                    executar_proxima_etapa()
+
+        if processando_etapa: # se estiver em um loop externo, sair do while True daqui para não travar
+            return
 
 
 def animar_busca(tela, cenario, historico):
@@ -131,17 +161,19 @@ def iniciar_tela(cenario):
     altura = cenario.altura * TAMANHO_CELULA
     tela = pygame.display.set_mode((largura, altura))
     pygame.display.set_caption(TITULO)
-    global fonte
-    fonte = pygame.font.SysFont(FONTE_NOME, FONTE_TAMANHO)
+    Estado.fonte = pygame.font.SysFont(FONTE_NOME, FONTE_TAMANHO)
 
     return tela
 
 
 def mostrar_menor_caminho_gui(caminho, historico, cenario):
     tela = iniciar_tela(cenario)
+    Estado.tela = tela
+    Estado.caminho = caminho
+    Estado.historico = historico
+    Estado.cenario = cenario
 
-    animar_busca(tela, cenario, historico)
-    desenhar_caminho_final(tela, cenario, caminho)
+    desenhar_cenario(tela, cenario)
+    pygame.display.flip()  # atualiza a tela
 
-    while True:
-        ouvir_eventos()
+    ouvir_eventos(False)
