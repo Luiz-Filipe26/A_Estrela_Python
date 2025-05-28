@@ -1,23 +1,26 @@
+import os
 from enum import Enum, auto
+from typing import Optional
 
 import pygame
-import os
-
-from typing import Optional
 from pygame.font import Font
 
 from src.a_estrela import OPERACAO, Celula
 
 TAMANHO_CELULA = 64
-FPS = 10
+FPS = 30
 FONTE_NOME = 'Arial'
 FONTE_TAMANHO = 16
 TITULO = "Algoritmo A* em game 2D"
+
+TEMPO_ENTRE_ETAPAS_MS = 300
+
 
 class Etapas(Enum):
     PROCURANDO_CAMINHO = auto()
     MOSTRANDO_CAMINHO = auto()
     ESPERANDO = auto()
+
 
 class Estado:
     fonte: Optional[Font] = None
@@ -26,6 +29,10 @@ class Estado:
     cenario = None
     historico = None
     caminho = None
+    passo_a_passo = False
+    esperando_proximo_passo = False
+    clock = pygame.time.Clock()
+    tempo_acumulado = 0
 
 
 class Cores:
@@ -51,12 +58,26 @@ CORES_CELULA = {
 
 CAMINHO_ABSOLUTO_DO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_PASTA_IMG = os.path.join(CAMINHO_ABSOLUTO_DO_SCRIPT, '..', 'img')
+NOME_PADRAO_FRAME_ANIMACAO = 'pixil-frame-'
 
 
-def buscar_imagem_para_celula(nome_arquivo):
-    caminho_imagem = os.path.join(CAMINHO_PASTA_IMG, nome_arquivo)
+def buscar_imagem_para_celula(nome_arquivo, subpasta=''):
+    caminho_imagem = os.path.join(CAMINHO_PASTA_IMG, subpasta, nome_arquivo)
+    if not os.path.exists(caminho_imagem):
+        return None
     imagem = pygame.image.load(caminho_imagem)
     return pygame.transform.scale(imagem, (TAMANHO_CELULA, TAMANHO_CELULA))
+
+
+def carregar_frames_animacao(subpasta):
+    frames = []
+    numero = 0
+    while True:
+        imagem = buscar_imagem_para_celula(f'{NOME_PADRAO_FRAME_ANIMACAO}{numero}.png', subpasta)
+        if not imagem:
+            return frames
+        frames.append(imagem)
+        numero += 1
 
 
 IMAGENS = {
@@ -64,29 +85,21 @@ IMAGENS = {
     Celula.SAIDA: buscar_imagem_para_celula('saida.png'),
     Celula.BARREIRA: buscar_imagem_para_celula('barreira.png'),
     Celula.SEMI_BARREIRA: buscar_imagem_para_celula('semi_barreira.png'),
-    Celula.FRUTA: buscar_imagem_para_celula('fruta.png')
+    Celula.FRUTA: buscar_imagem_para_celula('fruta.png'),
+    'ANIMACAO_PERSONAGEM': carregar_frames_animacao('frames'),
+    'ANIMACAO_PERSONAGEM_FRUTA': carregar_frames_animacao('frames_com_fruta')
 }
 
 
-def desenhar_celula(tela, posicao):
-    x, y, celula = posicao.x, posicao.y, posicao.celula
-    area_celula = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
-    pos_pixel = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
+def esperar_proxima_acao(modo_espera):
+    while Estado.tempo_acumulado < TEMPO_ENTRE_ETAPAS_MS:
+        delta_ms = Estado.clock.tick(FPS)
+        Estado.tempo_acumulado += delta_ms
 
-    if celula in IMAGENS and IMAGENS[celula]:
-        tela.blit(IMAGENS[celula], pos_pixel)
-    elif celula == Celula.VAZIA:
-        cor = CORES_CELULA[Celula.VAZIA]
-        pygame.draw.rect(tela, cor, area_celula)
+        if not modo_espera:
+            return
 
-    pygame.draw.rect(tela, Cores.PRETO, area_celula, 1)
-
-
-def desenhar_cor_transparente(tela, casa, cor_rgba):
-    x, y = casa.posicao.x, casa.posicao.y
-    sobreposicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
-    sobreposicao.fill(cor_rgba)
-    tela.blit(sobreposicao, (x * TAMANHO_CELULA, y * TAMANHO_CELULA))
+    Estado.tempo_acumulado = 0
 
 
 def exibir_valores_celula(tela, casa):
@@ -104,48 +117,113 @@ def exibir_valores_celula(tela, casa):
     tela.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8))
     tela.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))
 
+
+transicoes_etapas = {
+    Etapas.ESPERANDO: (Etapas.PROCURANDO_CAMINHO, lambda: animar_busca(Estado.tela, Estado.cenario, Estado.historico)),
+    Etapas.PROCURANDO_CAMINHO: (Etapas.MOSTRANDO_CAMINHO,
+                                lambda: desenhar_caminho_final(Estado.tela, Estado.cenario, Estado.caminho)),
+    Etapas.MOSTRANDO_CAMINHO: (Etapas.ESPERANDO, lambda: desenhar_cenario(Estado.tela, Estado.cenario)),
+}
+
+
 def executar_proxima_etapa():
-    if Estado.etapa_atual == Etapas.ESPERANDO:
-        Estado.etapa_atual = Etapas.PROCURANDO_CAMINHO
-        animar_busca(Estado.tela, Estado.cenario, Estado.historico)
-    elif Estado.etapa_atual == Etapas.PROCURANDO_CAMINHO:
-        Estado.etapa_atual = Etapas.MOSTRANDO_CAMINHO
-        desenhar_caminho_final(Estado.tela, Estado.cenario, Estado.caminho)
-    else:
-        Estado.etapa_atual = Etapas.ESPERANDO
+    Estado.etapa_atual, acao = transicoes_etapas[Estado.etapa_atual]
+    acao()
 
 
 def ouvir_eventos(processando_etapa=True):
-    while True:
-        for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
+    for evento in pygame.event.get():
+        if evento.type == pygame.QUIT:
+            pygame.quit()
+            exit()
+        if evento.type == pygame.KEYDOWN:
+            if evento.key == pygame.K_m:
+                Estado.passo_a_passo = not Estado.passo_a_passo
+            if evento.key == pygame.K_SPACE:
+                if processando_etapa:
+                    Estado.esperando_proximo_passo = False
+                else:
+                    executar_proxima_etapa()
+            if evento.key == pygame.K_ESCAPE:
                 pygame.quit()
                 exit()
-            if evento.type == pygame.KEYDOWN:
-                if not processando_etapa and evento.key == pygame.K_SPACE:
-                    executar_proxima_etapa()
 
-        if processando_etapa: # se estiver em um loop externo, sair do while True daqui para não travar
-            return
+
+def desenhar_celula(tela, posicao):
+    x, y, celula = posicao.x, posicao.y, posicao.celula
+    area_celula = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
+    pos_pixel = (x * TAMANHO_CELULA, y * TAMANHO_CELULA)
+
+    pygame.draw.rect(tela, CORES_CELULA[Celula.VAZIA], area_celula)
+
+    if celula in IMAGENS and IMAGENS[celula]:
+        tela.blit(IMAGENS[celula], pos_pixel)
+
+    pygame.draw.rect(tela, Cores.PRETO, area_celula, 1)
+
+
+def desenhar_cor_transparente(tela, casa, cor_rgba):
+    x, y = casa.posicao.x, casa.posicao.y
+    sobreposicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
+    sobreposicao.fill(cor_rgba)
+    tela.blit(sobreposicao, (x * TAMANHO_CELULA, y * TAMANHO_CELULA))
 
 
 def animar_busca(tela, cenario, historico):
-    clock = pygame.time.Clock()
     desenhar_cenario(tela, cenario)
+
     for casa, tipo_operacao in historico:
-        ouvir_eventos()
+        if Estado.passo_a_passo:
+            Estado.esperando_proximo_passo = True
+        else:
+            ouvir_eventos()
+
+        while Estado.esperando_proximo_passo:
+            ouvir_eventos()
+            esperar_proxima_acao(False)
+
         posicao_atual = cenario.obter_posicao_com_contexto(casa.posicao.x, casa.posicao.y)
         desenhar_celula(tela, posicao_atual)
         desenhar_cor_transparente(tela, casa, CORES_CELULA[tipo_operacao])
         exibir_valores_celula(tela, casa)
         pygame.display.flip()
-        clock.tick(FPS)
+
+        if not Estado.passo_a_passo:
+            esperar_proxima_acao(True)
 
 
 def desenhar_caminho_final(tela, cenario, caminho):
-    desenhar_cenario(tela, cenario)
+    cenario_fundo = pygame.Surface((tela.get_width(), tela.get_height()))
+    desenhar_cenario(cenario_fundo, cenario)
+
     for casa in caminho:
-        desenhar_cor_transparente(tela, casa, CORES_CELULA['CAMINHO_FINAL'])
+        desenhar_cor_transparente(cenario_fundo, casa, CORES_CELULA['CAMINHO_FINAL'])
+
+    pygame.display.flip()
+
+    frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM']
+    posicao = None
+
+    for casa in caminho:
+        posicao = (casa.posicao.x * TAMANHO_CELULA, casa.posicao.y * TAMANHO_CELULA)
+
+        if not casa.tem_fruta:
+            frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM']
+        else:
+            if casa.posicao.celula == Celula.FRUTA:
+                posicao_fruta = casa.posicao._replace(celula=Celula.VAZIA)
+                desenhar_celula(cenario_fundo, posicao_fruta)
+                desenhar_cor_transparente(cenario_fundo, casa, CORES_CELULA['CAMINHO_FINAL'])
+            frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM_FRUTA']
+
+        for frame in frames_animacao:
+            tela.blit(cenario_fundo, (0, 0))
+            tela.blit(frame, posicao)
+            pygame.display.flip()
+            esperar_proxima_acao(True)
+
+    tela.blit(cenario_fundo, (0, 0))
+    tela.blit(frames_animacao[0], posicao)
     pygame.display.flip()
 
 
@@ -153,6 +231,7 @@ def desenhar_cenario(tela, cenario):
     tela.fill(Cores.BRANCO)
     for posicao in cenario:
         desenhar_celula(tela, posicao)
+    pygame.display.flip()
 
 
 def iniciar_tela(cenario):
@@ -174,6 +253,6 @@ def mostrar_menor_caminho_gui(caminho, historico, cenario):
     Estado.cenario = cenario
 
     desenhar_cenario(tela, cenario)
-    pygame.display.flip()  # atualiza a tela
 
-    ouvir_eventos(False)
+    while True:
+        ouvir_eventos(False)
