@@ -1,20 +1,14 @@
-import os
 from enum import Enum, auto
 from typing import Optional
 
 import pygame
 from pygame.font import Font
 
-from src.a_estrela import OPERACAO, Celula
+from src.constantes import Celula, TAMANHO_CELULA, TEMPO_ENTRE_ETAPAS_MS, FPS, TITULO, FONTE_NOME, \
+    FONTE_TAMANHO, INSTRUCOES, Cores, CORES_CELULA
+from src.recursos import carregar_imagens
 
-# Informações globais para a interface
-TAMANHO_CELULA = 64
-FPS = 30
-FONTE_NOME = 'Arial'
-FONTE_TAMANHO = 16
-TITULO = "Algoritmo A* em game 2D"
-
-TEMPO_ENTRE_ETAPAS_MS = 300
+IMAGENS = carregar_imagens(TAMANHO_CELULA)
 
 
 # Definir estados principais do algoritmo
@@ -38,73 +32,7 @@ class Estado:
     tempo_acumulado = 0
     buffer_tela = None
     tamanho_janela = None
-
-
-# Cores para representar os elementos da interface
-class Cores:
-    BRANCO = (255, 255, 255)  # Casa vazia
-    AZUL = (0, 0, 255)
-    VERDE = (0, 255, 0)
-    PRETO = (0, 0, 0)
-    CINZA = (128, 128, 128)
-    LARANJA = (255, 165, 0)
-    VERMELHO_TRANSPARENTE = (255, 0, 0, 100)
-    VERDE_TRANSPARENTE = (0, 255, 0, 100)
-    AZUL_TRANSPARENTE = (0, 0, 255, 100)
-    FONTE = PRETO
-
-
-# Relacionar células/elementos com as cores
-CORES_CELULA = {
-    Celula.VAZIA: Cores.BRANCO,
-    Celula.PERSONAGEM: Cores.AZUL,
-    Celula.SAIDA: Cores.VERDE,
-    Celula.FRUTA: Cores.LARANJA,
-    Celula.BARREIRA: Cores.PRETO,
-    Celula.SEMI_BARREIRA: Cores.CINZA,
-    OPERACAO.CASA_FECHADA: Cores.VERMELHO_TRANSPARENTE,
-    OPERACAO.CASA_ABERTA: Cores.VERDE_TRANSPARENTE,
-    'CAMINHO_FINAL': Cores.AZUL_TRANSPARENTE,
-    'FONTE': Cores.FONTE,
-}
-
-# Informações para localizar imagens do jogo
-CAMINHO_ABSOLUTO_DO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
-CAMINHO_PASTA_IMG = os.path.join(CAMINHO_ABSOLUTO_DO_SCRIPT, '..', 'img')
-NOME_PADRAO_FRAME_ANIMACAO = 'pixil-frame-'
-
-
-# Verificar se as imagens existem e já redimensionar para o tamanho correto
-def buscar_imagem_para_celula(nome_arquivo, subpasta=''):
-    caminho_imagem = os.path.join(CAMINHO_PASTA_IMG, subpasta, nome_arquivo)
-    if not os.path.exists(caminho_imagem):
-        return None
-    imagem = pygame.image.load(caminho_imagem)
-    return pygame.transform.scale(imagem, (TAMANHO_CELULA, TAMANHO_CELULA))
-
-
-# Pegar todas as imagens usadas para a animação/gif do personagem
-def carregar_frames_animacao(subpasta):
-    frames = []
-    numero = 0
-    while True:
-        imagem = buscar_imagem_para_celula(f'{NOME_PADRAO_FRAME_ANIMACAO}{numero}.png', subpasta)
-        if not imagem:
-            return frames
-        frames.append(imagem)
-        numero += 1
-
-
-# Imagens usadas para o jogo
-IMAGENS = {
-    Celula.PERSONAGEM: buscar_imagem_para_celula('personagem.png'),
-    Celula.SAIDA: buscar_imagem_para_celula('saida.png'),
-    Celula.BARREIRA: buscar_imagem_para_celula('barreira.png'),
-    Celula.SEMI_BARREIRA: buscar_imagem_para_celula('semi_barreira.png'),
-    Celula.FRUTA: buscar_imagem_para_celula('fruta.png'),
-    'ANIMACAO_PERSONAGEM': carregar_frames_animacao('frames'),
-    'ANIMACAO_PERSONAGEM_FRUTA': carregar_frames_animacao('frames_com_fruta')
-}
+    tamanho_tela_atual = None
 
 
 # Controla o tempo de espera entre as etapas
@@ -114,13 +42,6 @@ def esperar_proxima_acao():
         Estado.tempo_acumulado += delta_ms
 
     Estado.tempo_acumulado = 0
-
-
-instrucoes = [
-    "Pressione ESC para sair.",
-    "Aperte espaço para ir para próxima etapa.",
-    "Aperte m para usar modo de micro-etapas."
-]
 
 
 def exibir_buffer(buffer):
@@ -138,7 +59,7 @@ def exibir_buffer(buffer):
 
     # Renderiza as instruções
     fonte = pygame.font.SysFont(None, 24)
-    for i, texto in enumerate(instrucoes):
+    for i, texto in enumerate(INSTRUCOES):
         img_texto = fonte.render(texto, True, Cores.PRETO)
         buffer_completo.blit(img_texto, (10, i * 20))
 
@@ -197,6 +118,8 @@ def ouvir_eventos(processando_etapa=True):
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_m:
                 Estado.passo_a_passo = not Estado.passo_a_passo
+                if Estado.esperando_proximo_passo:
+                    Estado.esperando_proximo_passo = False
             if evento.key == pygame.K_SPACE:
                 if processando_etapa:
                     Estado.esperando_proximo_passo = False
@@ -218,7 +141,7 @@ def desenhar_celula(buffer, posicao):
     if celula in IMAGENS and IMAGENS[celula]:
         buffer.blit(IMAGENS[celula], pos_pixel)
     else:
-        pygame.draw.rect(buffer, CORES_CELULA.get(celula), area_celula)
+        pygame.draw.rect(buffer, CORES_CELULA[celula], area_celula)
 
     pygame.draw.rect(buffer, Cores.PRETO, area_celula, 1)  # Grade para dividir as células
 
@@ -253,6 +176,13 @@ def animar_busca(buffer, cenario, historico):
         if not Estado.passo_a_passo:
             esperar_proxima_acao()
 
+    for casa in Estado.caminho:
+        posicao_atual = cenario.obter_posicao_com_contexto(casa.posicao.x, casa.posicao.y)
+        desenhar_celula(buffer, posicao_atual)
+        desenhar_cor_transparente(buffer, casa, CORES_CELULA['CAMINHO_FINAL'])
+        exibir_valores_celula(buffer, casa)
+        exibir_buffer(buffer)
+
 
 # Desenhar a animação do personagem percorrendo o menor caminho encontrado pelo algoritmo
 def desenhar_caminho_final(buffer, cenario, caminho):
@@ -271,26 +201,46 @@ def desenhar_caminho_final(buffer, cenario, caminho):
     frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM']
     posicao = None
 
-    for casa in caminho:
-        posicao = (casa.posicao.x * TAMANHO_CELULA, casa.posicao.y * TAMANHO_CELULA)
+    for casa_atual, casa_posterior in zip(caminho, caminho[1:]):
+        posicao = (
+            casa_posterior.posicao.x * TAMANHO_CELULA,
+            casa_posterior.posicao.y * TAMANHO_CELULA
+        )
 
         # Mudar aparência do personagem para indicar que ele pegou a fruta + tirar fruta da tela
-        if not casa.tem_fruta:
+        if not casa_atual.tem_fruta:
             frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM']
-        elif casa.posicao.celula == Celula.FRUTA:
-            posicao_fruta = casa.posicao._replace(celula=Celula.VAZIA)
+        elif casa_atual.posicao.celula == Celula.FRUTA:
+            posicao_fruta = casa_atual.posicao._replace(celula=Celula.VAZIA)
             desenhar_celula(cenario_fundo, posicao_fruta)
-            desenhar_cor_transparente(cenario_fundo, casa, CORES_CELULA['CAMINHO_FINAL'])
+            desenhar_cor_transparente(cenario_fundo, casa_atual, CORES_CELULA['CAMINHO_FINAL'])
             frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM_FRUTA']
+
+        tempo_passado = 0
+        tempo_espera = TEMPO_ENTRE_ETAPAS_MS * len(frames_animacao)
 
         # Animar o personagem
         for frame in frames_animacao:
-            buffer.blit(cenario_fundo, (0, 0))
-            buffer.blit(frame, posicao)
-            exibir_buffer(buffer)
-            esperar_proxima_acao()
-            ouvir_eventos(True)
+            tempo_local = 0
+            while tempo_local < TEMPO_ENTRE_ETAPAS_MS:
+                tick = Estado.clock.tick(FPS)
+                tempo_local += tick
+                tempo_passado += tick
 
+                progresso = tempo_passado / tempo_espera
+                progresso = min(progresso, 1.0)
+
+                x_interpolado = casa_atual.posicao.x + (casa_posterior.posicao.x - casa_atual.posicao.x) * progresso
+                x_interpolado *= TAMANHO_CELULA
+                y_interpolado = casa_atual.posicao.y + (casa_posterior.posicao.y - casa_atual.posicao.y) * progresso
+                y_interpolado *= TAMANHO_CELULA
+
+                buffer.blit(cenario_fundo, (0, 0))
+                buffer.blit(frame, (x_interpolado, y_interpolado))
+                exibir_buffer(buffer)
+                ouvir_eventos(True)
+
+    # Exibir o personagem parado na última posição
     buffer.blit(cenario_fundo, (0, 0))
     buffer.blit(frames_animacao[0], posicao)
     exibir_buffer(buffer)

@@ -2,24 +2,8 @@ import heapq
 import math
 from collections import namedtuple
 
-
-# Estado de uma casa: aberto ou fechado
-class OPERACAO:
-    CASA_ABERTA = 'A'
-    CASA_FECHADA = 'F'
-
-
-# Tipos de casas no cenário
-class Celula:
-    VAZIA = '_'
-    PERSONAGEM = 'C'
-    SAIDA = 'S'
-    BARREIRA = 'B'  # Pode pular se tiver fruta
-    SEMI_BARREIRA = 'A'  # Pode ser pulada
-    FRUTA = 'F'
-
-    VALIDAS = {VAZIA, PERSONAGEM, SAIDA, BARREIRA, SEMI_BARREIRA, FRUTA}
-
+from src.constantes import OPERACAO, Celula, CENARIO_PADRAO
+from src.criar_cenario import obter_cenario_gui
 
 PosicaoComContexto = namedtuple('PosicaoComContexto', 'x y celula pai')
 
@@ -232,20 +216,9 @@ def mostrar_menor_caminho_console(caminho):
     print(' -> '.join(caminho_formatado))
 
 
-# Cenário 6x6 de exemplo
-def obter_cenario():
-    return Cenario([
-        ['C', '_', '_', '_', 'B', '_'],
-        ['_', 'B', '_', '_', 'F', '_'],
-        ['_', '_', 'F', '_', 'F', '_'],
-        ['_', '_', '_', 'B', 'B', '_'],
-        ['_', '_', '_', 'A', '_', '_'],
-        ['_', '_', '_', '_', '_', 'S'],
-    ])
-
-
 def main():
-    cenario = obter_cenario()
+    cenario = Cenario(CENARIO_PADRAO)
+    #cenario = Cenario(obter_cenario_gui())
     if not cenario.personagem_posicao or not cenario.saida_posicao:
         print('Erro! Sem personagem ou sem saída!')
     caminho, historico = achar_caminho(cenario)
