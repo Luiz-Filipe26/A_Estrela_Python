@@ -7,6 +7,7 @@ from pygame.font import Font
 
 from src.a_estrela import OPERACAO, Celula
 
+# Informações globais para a interface
 TAMANHO_CELULA = 64
 FPS = 30
 FONTE_NOME = 'Arial'
@@ -15,13 +16,13 @@ TITULO = "Algoritmo A* em game 2D"
 
 TEMPO_ENTRE_ETAPAS_MS = 300
 
-
+# Definir estados principais do algoritmo
 class Etapas(Enum):
     PROCURANDO_CAMINHO = auto()
     MOSTRANDO_CAMINHO = auto()
     ESPERANDO = auto()
 
-
+# Informações para controle do jogo
 class Estado:
     fonte: Optional[Font] = None
     etapa_atual = Etapas.ESPERANDO
@@ -34,9 +35,9 @@ class Estado:
     clock = pygame.time.Clock()
     tempo_acumulado = 0
 
-
+# Cores para representar os elementos da interface
 class Cores:
-    BRANCO = (255, 255, 255)
+    BRANCO = (255, 255, 255)  # Casa vazia
     AZUL = (0, 0, 255)
     VERDE = (0, 255, 0)
     PRETO = (0, 0, 0)
@@ -47,20 +48,26 @@ class Cores:
     AZUL_TRANSPARENTE = (0, 0, 255, 100)
     FONTE = PRETO
 
-
+# Relacionar células/elementos com as cores
 CORES_CELULA = {
     Celula.VAZIA: Cores.BRANCO,
+    Celula.PERSONAGEM: Cores.AZUL,
+    Celula.SAIDA: Cores.VERDE,
+    Celula.FRUTA: Cores.LARANJA,
+    Celula.BARREIRA: Cores.PRETO,
+    Celula.SEMI_BARREIRA: Cores.CINZA,
     OPERACAO.CASA_FECHADA: Cores.VERMELHO_TRANSPARENTE,
     OPERACAO.CASA_ABERTA: Cores.VERDE_TRANSPARENTE,
     'CAMINHO_FINAL': Cores.AZUL_TRANSPARENTE,
     'FONTE': Cores.FONTE,
 }
 
+# Informações para localizar imagens do jogo
 CAMINHO_ABSOLUTO_DO_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_PASTA_IMG = os.path.join(CAMINHO_ABSOLUTO_DO_SCRIPT, '..', 'img')
 NOME_PADRAO_FRAME_ANIMACAO = 'pixil-frame-'
 
-
+# Verificar se as imagens existem e já redimensionar para o tamanho correto
 def buscar_imagem_para_celula(nome_arquivo, subpasta=''):
     caminho_imagem = os.path.join(CAMINHO_PASTA_IMG, subpasta, nome_arquivo)
     if not os.path.exists(caminho_imagem):
@@ -68,7 +75,7 @@ def buscar_imagem_para_celula(nome_arquivo, subpasta=''):
     imagem = pygame.image.load(caminho_imagem)
     return pygame.transform.scale(imagem, (TAMANHO_CELULA, TAMANHO_CELULA))
 
-
+# Pegar todas as imagens usadas para a animação/gif do personagem
 def carregar_frames_animacao(subpasta):
     frames = []
     numero = 0
@@ -79,7 +86,7 @@ def carregar_frames_animacao(subpasta):
         frames.append(imagem)
         numero += 1
 
-
+# Imagens usadas para o jogo
 IMAGENS = {
     Celula.PERSONAGEM: buscar_imagem_para_celula('personagem.png'),
     Celula.SAIDA: buscar_imagem_para_celula('saida.png'),
@@ -90,7 +97,7 @@ IMAGENS = {
     'ANIMACAO_PERSONAGEM_FRUTA': carregar_frames_animacao('frames_com_fruta')
 }
 
-
+# Controla o tempo de espera entre as etapas
 def esperar_proxima_acao(modo_espera):
     while Estado.tempo_acumulado < TEMPO_ENTRE_ETAPAS_MS:
         delta_ms = Estado.clock.tick(FPS)
@@ -102,6 +109,7 @@ def esperar_proxima_acao(modo_espera):
     Estado.tempo_acumulado = 0
 
 
+# Exibir os valores da distância percorrida (g), distância em linha reta (h) e distância total percorrida/heurística (f)
 def exibir_valores_celula(tela, casa):
     cor_fonte = CORES_CELULA['FONTE']
     x, y = casa.posicao.x, casa.posicao.y
@@ -117,7 +125,7 @@ def exibir_valores_celula(tela, casa):
     tela.blit(texto_h, (pos_x + 2, pos_y + TAMANHO_CELULA // 2 - 8))
     tela.blit(texto_f, (pos_x + 2, pos_y + TAMANHO_CELULA - 18))
 
-
+# Definir como o jogo transita de uma etapa para outra
 transicoes_etapas = {
     Etapas.ESPERANDO: (Etapas.PROCURANDO_CAMINHO, lambda: animar_busca(Estado.tela, Estado.cenario, Estado.historico)),
     Etapas.PROCURANDO_CAMINHO: (Etapas.MOSTRANDO_CAMINHO,
@@ -125,17 +133,19 @@ transicoes_etapas = {
     Etapas.MOSTRANDO_CAMINHO: (Etapas.ESPERANDO, lambda: desenhar_cenario(Estado.tela, Estado.cenario)),
 }
 
-
+# Pegar a próxima etapa do jogo e o que fazer nessa etapa
 def executar_proxima_etapa():
     Estado.etapa_atual, acao = transicoes_etapas[Estado.etapa_atual]
     acao()
 
-
+# Esperando interação do usuário para iniciar o jogo
 def ouvir_eventos(processando_etapa=True):
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             pygame.quit()
             exit()
+
+        # Espaço executa o algoritmo e "m" altera o modo: executar passo a passo ou não
         if evento.type == pygame.KEYDOWN:
             if evento.key == pygame.K_m:
                 Estado.passo_a_passo = not Estado.passo_a_passo
@@ -148,7 +158,7 @@ def ouvir_eventos(processando_etapa=True):
                 pygame.quit()
                 exit()
 
-
+# Desenhar uma célula/quadradinho da interface usando imagens, se não tiver, usa a cor correspondente
 def desenhar_celula(tela, posicao):
     x, y, celula = posicao.x, posicao.y, posicao.celula
     area_celula = pygame.Rect(x * TAMANHO_CELULA, y * TAMANHO_CELULA, TAMANHO_CELULA, TAMANHO_CELULA)
@@ -158,17 +168,19 @@ def desenhar_celula(tela, posicao):
 
     if celula in IMAGENS and IMAGENS[celula]:
         tela.blit(IMAGENS[celula], pos_pixel)
+    else:
+        pygame.draw.rect(tela, CORES_CELULA.get(celula), area_celula)
 
-    pygame.draw.rect(tela, Cores.PRETO, area_celula, 1)
+    pygame.draw.rect(tela, Cores.PRETO, area_celula, 1) # Grade para dividir as células
 
-
+# Desennhar cor transparente para não sobrepor as imagens
 def desenhar_cor_transparente(tela, casa, cor_rgba):
     x, y = casa.posicao.x, casa.posicao.y
     sobreposicao = pygame.Surface((TAMANHO_CELULA, TAMANHO_CELULA), pygame.SRCALPHA)
     sobreposicao.fill(cor_rgba)
     tela.blit(sobreposicao, (x * TAMANHO_CELULA, y * TAMANHO_CELULA))
 
-
+# Animação de buscar o caminho, colorindo as células/quadradinhos e verificando modo escolhido pelo usuário
 def animar_busca(tela, cenario, historico):
     desenhar_cenario(tela, cenario)
 
@@ -191,10 +203,17 @@ def animar_busca(tela, cenario, historico):
         if not Estado.passo_a_passo:
             esperar_proxima_acao(True)
 
-
+# Desenhar a animação do personagem percorrendo o menor caminho encontrado pelo algoritmo
 def desenhar_caminho_final(tela, cenario, caminho):
     cenario_fundo = pygame.Surface((tela.get_width(), tela.get_height()))
     desenhar_cenario(cenario_fundo, cenario)
+
+    # Correção visual para o personagem não ficar na posição inicial depois de começar a andar
+    for casa in caminho:
+        if casa.posicao.celula == Celula.PERSONAGEM:
+            posicao_personagem = casa.posicao._replace(celula=Celula.VAZIA)
+            desenhar_celula(cenario_fundo, posicao_personagem)
+            break
 
     for casa in caminho:
         desenhar_cor_transparente(cenario_fundo, casa, CORES_CELULA['CAMINHO_FINAL'])
@@ -207,6 +226,7 @@ def desenhar_caminho_final(tela, cenario, caminho):
     for casa in caminho:
         posicao = (casa.posicao.x * TAMANHO_CELULA, casa.posicao.y * TAMANHO_CELULA)
 
+        # Mudar aparência do personagem para indicar que ele pegou a fruta + tirar fruta da tela
         if not casa.tem_fruta:
             frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM']
         else:
@@ -216,6 +236,7 @@ def desenhar_caminho_final(tela, cenario, caminho):
                 desenhar_cor_transparente(cenario_fundo, casa, CORES_CELULA['CAMINHO_FINAL'])
             frames_animacao = IMAGENS['ANIMACAO_PERSONAGEM_FRUTA']
 
+        # Animar o personagem
         for frame in frames_animacao:
             tela.blit(cenario_fundo, (0, 0))
             tela.blit(frame, posicao)
@@ -226,7 +247,7 @@ def desenhar_caminho_final(tela, cenario, caminho):
     tela.blit(frames_animacao[0], posicao)
     pygame.display.flip()
 
-
+# Desenhar interface completa e seus elementos
 def desenhar_cenario(tela, cenario):
     tela.fill(Cores.BRANCO)
     for posicao in cenario:
@@ -234,6 +255,7 @@ def desenhar_cenario(tela, cenario):
     pygame.display.flip()
 
 
+# Iniciar interface gráfica com base na matriz do cenário
 def iniciar_tela(cenario):
     pygame.init()
     largura = cenario.largura * TAMANHO_CELULA
@@ -244,7 +266,7 @@ def iniciar_tela(cenario):
 
     return tela
 
-
+# Mostrar visualmente algoritmo procurando o menor caminho
 def mostrar_menor_caminho_gui(caminho, historico, cenario):
     tela = iniciar_tela(cenario)
     Estado.tela = tela
