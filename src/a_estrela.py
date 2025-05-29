@@ -217,8 +217,8 @@ def mostrar_menor_caminho_console(caminho):
 
 
 def main():
-    cenario = Cenario(CENARIO_PADRAO)
-    #cenario = Cenario(obter_cenario_gui())
+    #cenario = Cenario(CENARIO_PADRAO)
+    cenario = Cenario(obter_cenario_gui())
     if not cenario.personagem_posicao or not cenario.saida_posicao:
         print('Erro! Sem personagem ou sem saída!')
     caminho, historico = achar_caminho(cenario)

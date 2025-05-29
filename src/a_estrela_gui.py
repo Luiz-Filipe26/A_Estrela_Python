@@ -230,10 +230,10 @@ def desenhar_caminho_final(buffer, cenario, caminho):
                 progresso = tempo_passado / tempo_espera
                 progresso = min(progresso, 1.0)
 
-                x_interpolado = casa_atual.posicao.x + (casa_posterior.posicao.x - casa_atual.posicao.x) * progresso
-                x_interpolado *= TAMANHO_CELULA
-                y_interpolado = casa_atual.posicao.y + (casa_posterior.posicao.y - casa_atual.posicao.y) * progresso
-                y_interpolado *= TAMANHO_CELULA
+                x1, y1 = casa_atual.posicao.x * TAMANHO_CELULA, casa_atual.posicao.y * TAMANHO_CELULA
+                x2, y2 = casa_posterior.posicao.x * TAMANHO_CELULA, casa_posterior.posicao.y * TAMANHO_CELULA
+                x_interpolado = x1 + (x2 - x1) * progresso
+                y_interpolado = y1 + (y2 - y1) * progresso
 
                 buffer.blit(cenario_fundo, (0, 0))
                 buffer.blit(frame, (x_interpolado, y_interpolado))
