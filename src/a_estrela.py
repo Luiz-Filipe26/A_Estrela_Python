@@ -2,7 +2,7 @@ import heapq
 import math
 from collections import namedtuple
 
-from src.constantes import OPERACAO, Celula, CENARIO_PADRAO
+from src.constantes import OPERACAO, Celula
 from src.criar_cenario import obter_cenario_gui
 
 PosicaoComContexto = namedtuple('PosicaoComContexto', 'x y celula pai')
@@ -46,7 +46,7 @@ class Cenario:
         tipo = self.obter_celula(x, y)
         return PosicaoComContexto(x, y, tipo, None)
 
-    # Encontrar os caminhos vizinhos dipoíveis para o personagem andar
+    # Encontrar os caminhos vizinhos disponíveis para o personagem andar
     def obter_coordenadas_vizinhas(self, x, y):
         return [
             (x + dx, y + dy)
@@ -164,9 +164,9 @@ def inicializar_estado_da_procura(cenario):
     return EstadoDaProcura(personagem, saida)
 
 
-# Iniciar algoritmo A*
+# Executar algoritmo A*
 def achar_caminho(cenario):
-    # Personagem e saída sendo criados para inicar a procuta
+    # Personagem e saída sendo criados para iniciar a procura
     estado_da_procura = inicializar_estado_da_procura(cenario)
     if estado_da_procura is None:
         return []

@@ -2,7 +2,7 @@ import os
 
 import pygame
 
-from src.constantes import CAMINHO_PASTA_IMG, TAMANHO_CELULA, NOME_PADRAO_FRAME_ANIMACAO, Celula
+from src.constantes import CAMINHO_PASTA_IMG, NOME_PADRAO_FRAME_ANIMACAO, Celula
 
 
 # Verificar se as imagens existem e já redimensionar para o tamanho correto

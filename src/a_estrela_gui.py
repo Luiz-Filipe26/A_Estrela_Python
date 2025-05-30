@@ -45,19 +45,16 @@ def esperar_proxima_acao():
 
 
 def exibir_buffer(buffer):
-    # Dimensões do buffer original
     largura, altura = buffer.get_size()
 
-    # Altura extra para instruções (ex: 60px)
     altura_extra = 60
 
     # Cria um novo buffer com espaço extra no topo
     buffer_completo = pygame.Surface((largura, altura + altura_extra))
 
-    # Preenche o topo com fundo preto (ou outra cor, se preferir)
     buffer_completo.fill(Cores.BRANCO, pygame.Rect(0, 0, largura, altura_extra))
 
-    # Renderiza as instruções
+    # Mostrar texto
     fonte = pygame.font.SysFont(None, 24)
     for i, texto in enumerate(INSTRUCOES):
         img_texto = fonte.render(texto, True, Cores.PRETO)
